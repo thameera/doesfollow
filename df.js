@@ -14,20 +14,16 @@ var fs = require('fs'),
 var T, name1, name2;
 
 var doesFollow = function(id1, id2, flwrs1, flwrs2) {
-  var f = function(id, flwrs, name1, name2) {
-    if (flwrs.indexOf(id) >= 0) {
-      console.log(name1 + ' follows ' + name2);
-    } else {
-      console.log(name1 + ' does not follow ' + name2);
-    }
+  var f = function(id, flwrs) {
+    // Check if the ID is in the Following list
+    return flwrs.indexOf(+id) >= 1 ? ' follows ' : ' does not follow ';
   };
 
-  f(Number(id2), flwrs1, name1, name2);
-  f(Number(id1), flwrs2, name2, name1);
+  console.log(name1 + f(id2, flwrs1) + name2);
+  console.log(name2 + f(id1, flwrs2) + name1);
 };
 
 var getUserId = function(name, cb) {
-  //console.log('Getting user id for ' + name);
   T.get('users/show', {screen_name: name}, function(err, data) {
     if (err) {
       console.log('Error fetching user: ' + name);
@@ -41,7 +37,6 @@ var getUserId = function(name, cb) {
 };
 
 var getFollowing = function(name, cb) {
-  //console.log('Getting friends for ' + name);
   T.get('friends/ids', {screen_name: name}, function(err, data) {
     if (err) {
       console.log('Error fetching friends for ' + name);
@@ -50,8 +45,9 @@ var getFollowing = function(name, cb) {
       return;
     }
 
+    // First 'friends/ids' req only returns the first 5000. Need to handle this.
     if (data.ids.length >= 5000) {
-      console.log('Warning: ' + name + '\'s friend count is ' + data.ids.length);
+      console.log('Warning: ' + name + '\'s friend count is >= ' + data.ids.length);
     }
 
     cb(null, data.ids);
@@ -59,13 +55,11 @@ var getFollowing = function(name, cb) {
 };
 
 var fetchData = function(cb) {
-  //console.log('Fetching data');
   var args = process.argv.slice(2);
   name1 = args[0];
   name2 = args[1];
 
-  //console.log('Names are ' + name1 + ' and ' + name2 + '\n');
-
+  // Get the user IDs and following lists of the two users
   async.parallel([
     getUserId.bind(null, name1),
     getUserId.bind(null, name2),
@@ -78,7 +72,6 @@ var fetchData = function(cb) {
 };
 
 var authorize = function(keys, cb) {
-  //console.log('Authorizing');
   T = new Twit({
     consumer_key: keys[0],
     consumer_secret: keys[1],
@@ -90,25 +83,22 @@ var authorize = function(keys, cb) {
 };
 
 var readFile = function(cb) {
-  //console.log('Reading file');
   fs.readFile('keys', 'utf8', function(err, data) {
     if (err) {
-      console.log("Error reading keys file");
+      console.log('Error reading keys file');
       cb(err);
       return;
     }
 
     data = data.split('\n');
-    data.splice(4);
+    data.splice(4); // Get the first 4 items
 
     cb(err, data);
   });
 };
 
 async.waterfall([
-  function(cb) {
-    readFile(cb);
-  },
+  readFile,
   authorize,
   fetchData
 ],
